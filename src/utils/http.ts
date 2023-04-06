@@ -1,7 +1,8 @@
 import axios, { AxiosError, AxiosInstance, HttpStatusCode } from 'axios'
 import { toast } from 'react-toastify'
+import path from 'src/constants/path'
 import { AuthResponse } from 'src/types/auth.type'
-import { clearAccessTokenFromLS, getAccessTokenFromLS, saveAccessTokenToLS } from './auth'
+import { clearLS, getAccessTokenFromLS, setAccessTokenToLS, setProfileToLS } from './auth'
 
 class Http {
   instance: AxiosInstance
@@ -15,25 +16,30 @@ class Http {
         'Content-Type': 'application/json'
       }
     })
-    this.instance.interceptors.request.use((config) => {
-      if (this.accessToken && config.headers) {
-        config.headers.Authorization = this.accessToken
+    this.instance.interceptors.request.use(
+      (config) => {
+        if (this.accessToken && config.headers) {
+          config.headers.Authorization = this.accessToken
+          return config
+        }
         return config
+      },
+      (error) => {
+        return Promise.resolve(error)
       }
-      return config
-    }, (error) => {
-      return Promise.resolve(error)
-    })
+    )
     // add a response interceptors
     this.instance.interceptors.response.use(
       (response) => {
         const { url } = response.config
-        if (url == '/login' || url == '/register') {
-          this.accessToken = (response.data as AuthResponse).data.access_token
-          saveAccessTokenToLS(this.accessToken)
-        } else if (url == '/logout') {
+        if (url == path.login || url == path.register) {
+          const data = response.data as AuthResponse
+          this.accessToken = data.data.access_token
+          setAccessTokenToLS(this.accessToken)
+          setProfileToLS(data.data.user)
+        } else if (url == path.logout) {
           this.accessToken = ''
-          clearAccessTokenFromLS()
+          clearLS()
         }
         return response
       },
